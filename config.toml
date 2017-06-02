@@ -3,4 +3,5 @@ languageCode = "de-de"
 title = "Scala n00b"
 theme = "beautifulhugo"
 pygmentsuseclasses = true
-commit = "https://github.com/tekbe/scala-noob/tree/master/"
+
+
