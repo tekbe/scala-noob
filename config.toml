@@ -1,0 +1,9 @@
+baseURL = "https://scala-noob.de/"
+languageCode = "de-de"
+title = "Scala n00b"
+theme = "beautifulhugo"
+pygmentsuseclasses = true
+iPygmentsCodeFences = true
+PygmentsStyle = "monokai"
+
+
