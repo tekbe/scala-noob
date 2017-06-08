@@ -5,16 +5,15 @@ theme = "beautifulhugo"
 pygmentsuseclasses = true
 
 [[menu.main]]
+    name = "Impressum"
+    pre = "<i class='fa fa-heart'></i>"
+    weight = -100
+    identifier = "impressum"
+    url = "/impressum/"
+[[menu.main]]
     name = "Über"
     pre = "<i class='fa fa-heart'></i>"
     weight = -110
     identifier = "about"
     url = "/about/"
-[[menu.main]]
-    name = "Impressum"
-    pre = "<i class='fa fa-heart'></i>"
-    weight = -110
-    identifier = "impressum"
-    url = "/impressum/"
-
 

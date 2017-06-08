@@ -8,9 +8,7 @@ title = "Impressum"
 
 # Angaben gemäß § 5 TMG:
 
-Tim Ehlers
-
-Kontakt: tekbe@gmx.de
+Tim Ehlers, tekbe@gmx.de
 
 # Haftung für Links
 
