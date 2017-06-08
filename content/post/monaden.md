@@ -5,15 +5,15 @@ tags = []
 title = "Monaden, flatMap() und die Bedeutung von for"
 draft = true
 +++
-Was ist eigentlich eine Monade? Diese Frage stellt man sich früher oder später bei der Beschäftigung mit Scala. Eine Antwort darauf wäre, eine Monade ist das, was den Typen `Option[T]`, `Future[T]` und `Stream[T]` gemeinsam ist.
+Was ist eine *Monade*? Diese Frage stellt man sich früher oder später bei der Beschäftigung mit Scala. Eine Antwort darauf wäre, eine Monade ist das, was den Typen `Option[T]`, `Future[T]` und `Stream[T]` gemeinsam ist.
 
-Diese Beispiele für Monaden sind nicht nur sehr geläufig, sie repräsentieren auch intuitiv klare, expressive und vorallem sehr unterschiedliche Konzepte. Wir wollen sehen, wie sich vor diesem heterogenen Hintergrund das gemeinsame Kontept der Monade abzeichnet. 
+Diese Beispiele für Monaden sind nicht nur sehr geläufig (zur Erinnerung s. [hier](https://www.tutorialspoint.com/scala/scala_options.htm), [hier](http://docs.scala-lang.org/overviews/core/futures.html#futures) und [hier](http://www.mrico.eu/entry/scala_streams)), sie repräsentieren auch intuitiv klare, expressive und vorallem sehr unterschiedliche Konzepte. Wir wollen sehen, wie sich vor dem Hintergrund dieser heterogenen Typen das gemeinsame Konzept der Monade abzeichnet. 
 
-Als erste Gemeinsamkeit kann man davon sprechen, dass alle Beispiele einen typisierten Berechnungskontext bereitstellen.
+Als erste Gemeinsamkeit kann man davon sprechen, dass alle diese Beispiele einen typisierten Berechnungskontext bereitstellen. Die Ergebnisse dieser Berechnungen liegen nicht unbedingt vor: die `Option[T]` enthält vielleicht keinen Wert, die Berechnung im `Future[T]` dauert noch an, oder der `Stream[T]` ist unendlich lang und produziert auf Anfrage immer weiter Daten.
 
 ## Werte aus dem Kontext herausholen
 
-Aus Sicht eines Entwickles, dem der Kontext egal ist und der einfach nur mit den Werten arbeiten möchte, erscheint der Kontext vielleicht als eine Art Container, der die gewünschten Werte enthält.
+Aus Sicht eines Entwickles, der sich nicht für den Kontext interessiert und &bdquo;einfach nur&ldquo; mit den Werten arbeiten möchte, erscheint der Kontext vielleicht als eine Art Container, der die gewünschten Werte enthält.
 
 Allerdings sind die Wege zum &bdquo;Herausholen&ldquo; der Werte vielfältig und von Kontext zu Kontext unterschiedlich.
 
@@ -58,7 +58,7 @@ def length(s: Future[String]): Future[Int]
 def length(s: Stream[String]): Stream[Int]
 ~~~
 
-Stattdessen reicht es meist &ndash; unabhängig davon, ob Werte vorliegen oder nicht &ndash; nur zu *beschreiben*, was mit ihnen geschehen soll, ohne diese Berechnung auch direkt auszuführen (zu *evaluieren*).     
+Stattdessen reicht es &ndash; unabhängig davon, ob Werte vorliegen oder nicht &ndash; nur zu *beschreiben*, was mit ihnen geschehen soll, ohne diese Berechnung auch direkt auszuführen (zu *evaluieren*).     
 
 ## Funktionen in den Kontext heben
 
@@ -68,15 +68,48 @@ Wie wäre es also, wenn wir anstatt Werte aus dem Kontext zu holen, eine von der
 def length(s: String): Int
 ~~~
 
-in den Kontext &bdquo;hinein heben&ldquo;? Genau das ist die erste wesentliche Eigenschaft von Monaden. Sie erlauben das *liften* von Funktionen in ihren Kontext über die Funktion `map` und damit die Modifikation der gekapselten Berechnung.
+in den Kontext &bdquo;hinein heben&ldquo;? Genau das ist die erste wesentliche Eigenschaft von Monaden. Sie erlauben das *liften* von Funktionen in ihren Kontext über ihre `map` Funktion und damit die Modifikation der gekapselten Berechnung.
 
 ~~~scala
 trait Future[A] {
   def map[B](f: A => B): Future[B]
 }
 
-def someAsyncComputation: Future[String]
-val f: Future[Int] = someAsyncComputation.map(s => length(s))
+val f1: Future[String] = someAsyncComputation()
+// f2 wird berechnet, sobald die Berechnung von f1 abgeschlossen ist
+val f2: Future[Int] = f1.map(s => length(s))
 ~~~
 
-Die Funktion `length` lässt sich unverändert in jede beliebige Monade heben, dessen Typparameter String ist. Es ist also bedeutend einfacher vom Kontext zu abstrahieren, als ihn zu beenden.
+Die Funktion `length` lässt sich unverändert auch in den Kontext von `Option[String]` oder `Stream[String]` (oder jeder anderen Monade mit Typparameter `String`) heben. 
+
+Gerade wenn man sich nicht für ihn interessiert, ist es pragmatischer, vom Kontext zu abstrahieren, als ihn zu beenden. Ob und wann eine Berechnung evaluiert wird, bleibt so die Sache der Monade. 
+
+## Gleichartige Kontexte verbinden
+
+Das im vorherigen Abschnitt beschriebene Merkmal, eine Funktion in einen Kontext heben zu können, ist für sich genommen das eines *Funktors*. Während jede Monade ein Funktor ist, muss zum Funktor noch eine Eigenschaft hinzukommen, um Monade genannt zu werden.
+
+Manchmal möchte man Berechnungen beschreiben, die sich über mehrere Kontexte erstrecken. 
+
+~~~scala
+def add(f1: Future[Int], f2: Future[Int]): Future[Int]
+~~~
+
+Man würde hier erwarten, dass die Addition ausgeführt wird, sobald die Berechnungen der beiden Parameter abgeschlossen ist.
+
+~~~scala
+def max(o1: Option[Int], o2: Option[Int]): Option[Int]
+~~~
+
+Wie ist es hier? Möchte man als Ergebnis `None`, wenn einer der beiden Parameter `None` ist, oder erwartet man dann den jeweils anderen Parameter als Ergebnis?
+
+Geht man wieder von Funktionen aus, die nur über die Typparameter der Monade definiert sind,
+
+~~~scala
+def add(i1: Int, i2: Int) = i1 + i2
+def max(i1: Int, i2: Int) = if (i1 > i2) i1 else i2
+~~~
+
+haben wir einen Hinweis auf die Anwort: die Funktionen lassen sich nur anwenden, wenn beide Parameter gegeben sind.
+
+
+
