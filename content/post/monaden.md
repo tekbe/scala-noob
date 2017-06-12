@@ -7,7 +7,7 @@ draft = true
 +++
 Was ist eine *Monade*? Diese Frage stellt man sich früher oder später bei der Beschäftigung mit Scala. Eine Antwort darauf wäre, eine Monade ist das, was den Typen `Option[T]`, `Future[T]` und `Stream[T]` gemeinsam ist.
 
-Diese Beispiele für Monaden sind nicht nur sehr geläufig (zur Erinnerung s. [hier](https://www.tutorialspoint.com/scala/scala_options.htm), [hier](http://docs.scala-lang.org/overviews/core/futures.html#futures) und [hier](http://www.mrico.eu/entry/scala_streams)), sie repräsentieren auch intuitiv klare, expressive und vorallem sehr unterschiedliche Konzepte. Wir wollen sehen, wie sich vor dem Hintergrund dieser heterogenen Typen das gemeinsame Konzept der Monade abzeichnet. 
+Diese Beispiele für Monaden sind nicht nur sehr geläufig (zur Erinnerung s. [hier](https://www.tutorialspoint.com/scala/scala_options.htm), [hier](http://docs.scala-lang.org/overviews/core/futures.html#futures) und [hier](http://www.mrico.eu/entry/scala_streams)), sie repräsentieren auch intuitiv klare, expressive und vorallem sehr unterschiedliche Konzepte oder Effekte. Wir wollen sehen, wie sich vor dem Hintergrund dieser heterogenen Typen das gemeinsame Konzept der Monade abzeichnet. 
 
 Als erste Gemeinsamkeit kann man davon sprechen, dass alle diese Beispiele einen typisierten Berechnungskontext bereitstellen. Die Ergebnisse dieser Berechnungen liegen nicht unbedingt vor: die `Option[T]` enthält vielleicht keinen Wert, die Berechnung im `Future[T]` dauert noch an, oder der `Stream[T]` ist unendlich lang und produziert auf Anfrage immer weiter Daten.
 
@@ -23,7 +23,7 @@ Egal, ob man den Kontext einfach zerstört,
 // was, wenn die Berechnung länger dauert?
 val x = Await.result(future, 1 second)
 // was, wenn der Stream unendlich lang ist?
-val y = stream.toVector(0)
+val y = stream.toVector
 // was, wenn es den Wert nicht gibt?
 val z = option.get
 ~~~
@@ -36,7 +36,7 @@ future.onComplete {
   case Failure(t) => t.printStackTrace()
 }
 
-val y = stream.head // was, wenn der Stream leer ist?
+val y = stream.headOption
 val z = option.getOrElse("default")
 ~~~
 
@@ -76,7 +76,7 @@ trait Future[A] {
 }
 
 val f1: Future[String] = someAsyncComputation()
-// f2 wird berechnet, sobald die Berechnung von f1 abgeschlossen ist
+// die Berechnung von f2 beginnt, sobald die von f1 abgeschlossen ist
 val f2: Future[Int] = f1.map(s => length(s))
 ~~~
 
@@ -86,30 +86,96 @@ Gerade wenn man sich nicht für ihn interessiert, ist es pragmatischer, vom Kont
 
 ## Gleichartige Kontexte verbinden
 
-Das im vorherigen Abschnitt beschriebene Merkmal, eine Funktion in einen Kontext heben zu können, ist für sich genommen das eines *Funktors*. Während jede Monade ein Funktor ist, muss zum Funktor noch eine Eigenschaft hinzukommen, um Monade genannt zu werden.
+Das im vorherigen Abschnitt beschriebene Merkmal, eine Funktion in einen Kontext heben zu können, ist für sich genommen das eines *Funktors*. Während jede Monade ein Funktor ist, muss zum Funktor aber noch eine Eigenschaft hinzukommen, um Monade genannt zu werden.
 
 Manchmal möchte man Berechnungen beschreiben, die sich über mehrere Kontexte erstrecken. 
 
 ~~~scala
-def add(f1: Future[Int], f2: Future[Int]): Future[Int]
+def max(f1: Future[Int], f2: Future[Int]): Future[Int]
 ~~~
 
-Man würde hier erwarten, dass die Addition ausgeführt wird, sobald die Berechnungen der beiden Parameter abgeschlossen ist.
+Man würde hier erwarten, dass der größere der beiden Werte ermittelt wird, sobald die Berechnungen der beiden Parameter abgeschlossen ist.
+
+Auch hier will man sich nicht um die Eigenheit der Monade kümmern.
 
 ~~~scala
-def max(o1: Option[Int], o2: Option[Int]): Option[Int]
+def max(i1: Int, i2: Int): Int = if (i1 > i2) i1 else i2
 ~~~
 
-Wie ist es hier? Möchte man als Ergebnis `None`, wenn einer der beiden Parameter `None` ist, oder erwartet man dann den jeweils anderen Parameter als Ergebnis?
+Stattdessen sollte es möglich sein, Funktionen über Typparameter gleichartiger Monaden in einen Verbund ihrer Kontexte zu heben. Und tatsächlich ist die Kombinierbarkeit gleichartiger Kontexte gerade das Merkmal, welches Monaden von einfachen Funktoren unterscheidet.
 
-Geht man wieder von Funktionen aus, die nur über die Typparameter der Monade definiert sind,
+Die Art und Weise, wie das geschieht, mag etwas kompliziert erscheinen. Denn zunächst wird eine Monade mittels `map` in den Kontext der anderen geliftet. Anschließend werden die nun geschachtelten Kontexte mit `flatten` eingeebnet.
 
 ~~~scala
-def add(i1: Int, i2: Int) = i1 + i2
-def max(i1: Int, i2: Int) = if (i1 > i2) i1 else i2
+val f1: Future[Int]
+val f2: Future[Int]
+
+val r1: Future[Future[(Int,Int)]] = f1.map(v1 => f2.map(v2 => (v1, v2)))
+val r2: Future[(Int, Int)] = r1.flatten
+val r3: Future[Int] = r2.map(v => max(v._1, v._2))
 ~~~
 
-haben wir einen Hinweis auf die Anwort: die Funktionen lassen sich nur anwenden, wenn beide Parameter gegeben sind.
+Man kann sich kürzer fassen, indem man das Liften der Monade mit dem Liften der Funktion `max` kombiniert.
 
+~~~scala
+val r1: Future[Future[Int]] = f1.map(v1 => f2.map(v2 => max(v1, v2)))
+val r2: Future[Int] = r1.flatten
+~~~
 
+Das Liften einer Monade in eine andere und das Einebnen der geschachtelten Kontexte in einem Schritt erreicht man mit `flatMap` &ndash; einer Kombination aus `map` mit anschließendem `flatten`.
 
+~~~scala
+trait Future[A] {
+  def flatMap[B](f: A => Future[B]): Future[B] = map(f).flatten
+}
+~~~
+
+Damit lässt sich das Liften einer Funktion in den kombinierten Kontext gleichartiger Monaden in einen einzigen Ausdruck fassen.
+
+~~~scala
+val r: Future[Int] = f1.flatMap(v1 => f2.map(v2 => max(v1, v2)))
+~~~
+
+Leider passt der Ausdruck nicht recht zu unserem intuitiven Verständnis. Zusehr tritt die Schachtelung in den Vordergrund, die doch nur ein Mittel zum Verbinden der Monaden sein sollte.
+
+Man kann sich vorstellen, wie schnell es unübersichtlich wird, wenn mehr als zwei Monaden im Spiel sind.
+
+~~~scala
+def max(is: Int*): Int
+
+m1.flatMap(v1 => m2.flatMap(v2 => m3.flatMap(v3 => m4.map(v4 =>
+    max(v1, v2, v3, v4)
+))))
+~~~
+
+Auf jeder Ebene muss man &bdquo;`flatten`&ldquo;. Nur die innerste Monade ist nicht geschachtelt, hier reicht `map`.
+
+## Alternative Schreibweise mit for
+
+Man würde wohl lieber etwas schreiben wie 
+~~~scala
+join(m1, m2).map(v => max(v._1, v._2))
+~~~
+Monaden verbinden, Funktion in den resultierenden Kontext liften, fertig. Nun gibt es leider keine Funktion `join` in der Standard Bibliothek. Aber wie wäre es mit
+
+~~~scala
+for {
+  v1 <- m1
+  v2 <- m2
+} yield max(v1, v2)
+~~~
+
+Die geschweiften Klammern markieren den Verbund der Monaden `m1` und `m2` und nach `yield` folgt der in den resultierenden Kontext zu liftende Ausdruck.
+
+Tatsächlich ist diese Schreibweise äquivalent zur Schachtelung von `flatMap` und `map` aus dem vorherigen Abschnitt. Mehr noch, der Scala Compiler übersetzt einen solchen `for`-Ausdruck sogar wortwörtlich in eben jenen geschachtelten Ausdruck.
+
+Bei der sog. *for comprehension* handelt es sich also keinesfalls um eine Schleife, sondern um ein allgemeineres funktionales Konstrukt. Nur in Verbindung mit den Monaden `List[T]` oder `Vector[T]` erinnert das Ergebnis als Spezialfall an etwas, für dessen Erzeugung man in anderen Sprachen Schleifen verwendet:
+
+~~~scala
+scala> for {
+     |   i <- 1 to 3
+     |   j <- 1 to 3
+     | } yield (i,j)
+
+res0 = Vector((1,1), (1,2), (1,3), (2,1), (2,2), (2,3), (3,1), (3,2), (3,3))
+~~~ 
