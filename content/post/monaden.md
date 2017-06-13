@@ -130,13 +130,24 @@ trait Future[A] {
 }
 ~~~
 
-Damit lässt sich das Liften einer Funktion in den kombinierten Kontext gleichartiger Monaden in einen einzigen Ausdruck fassen.
+Nebenbei: es genügt für eine Monade streng genommen `flatMap` sowie eine Funktion zum Erzeugen des Kontext bereitzustellen (z.B. `apply`). `map` lässt sich dann in Begriffen von `flatMap` und `apply` definieren.
+
+~~~scala
+object Option {
+  def apply[A](x: A): Option[A]
+}
+trait Option[A] {
+  def map[B](f: A => B): Option[B] = flatMap(t => Option(f(t)))
+}
+~~~
+
+Das Liften einer Funktion in den kombinierten Kontext gleichartiger Monaden lässt sich nun also in einen einzigen Ausdruck fassen.
 
 ~~~scala
 val r: Future[Int] = f1.flatMap(v1 => f2.map(v2 => max(v1, v2)))
 ~~~
 
-Leider passt der Ausdruck nicht recht zu unserem intuitiven Verständnis. Zusehr tritt die Schachtelung in den Vordergrund, die doch nur ein Mittel zum Verbinden der Monaden sein sollte.
+Leider passt das nicht recht zu unserem intuitiven Verständnis. Zusehr tritt die Schachtelung in den Vordergrund, die doch nur ein Mittel zum Verbinden der Monaden sein sollte.
 
 Man kann sich vorstellen, wie schnell es unübersichtlich wird, wenn mehr als zwei Monaden im Spiel sind.
 
@@ -154,9 +165,9 @@ Auf jeder Ebene muss man &bdquo;`flatten`&ldquo;. Nur die innerste Monade ist ni
 
 Man würde wohl lieber etwas schreiben wie 
 ~~~scala
-join(m1, m2).map(v => max(v._1, v._2))
+bind(m1, m2).map(v => max(v._1, v._2))
 ~~~
-Monaden verbinden, Funktion in den resultierenden Kontext liften, fertig. Nun gibt es leider keine Funktion `join` in der Standard Bibliothek. Aber wie wäre es mit
+Monaden verbinden, Funktion in den resultierenden Kontext liften, fertig. Nun gibt es keine `bind` Funktion in der Standardbibliothek. Aber wie wäre es mit
 
 ~~~scala
 for {
@@ -169,7 +180,7 @@ Die geschweiften Klammern markieren den Verbund der Monaden `m1` und `m2` und na
 
 Tatsächlich ist diese Schreibweise äquivalent zur Schachtelung von `flatMap` und `map` aus dem vorherigen Abschnitt. Mehr noch, der Scala Compiler übersetzt einen solchen `for`-Ausdruck sogar wortwörtlich in eben jenen geschachtelten Ausdruck.
 
-Bei der sog. *for comprehension* handelt es sich also keinesfalls um eine Schleife, sondern um ein allgemeineres funktionales Konstrukt. Nur in Verbindung mit den Monaden `List[T]` oder `Vector[T]` erinnert das Ergebnis als Spezialfall an etwas, für dessen Erzeugung man in anderen Sprachen Schleifen verwendet:
+Bei der sog. *for comprehension* handelt es sich also keinesfalls um eine Schleife, sondern um ein allgemeineres funktionales Konstrukt. Nur in Verbindung mit den Monaden `List[T]` oder `Vector[T]` erinnert das Ergebnis als Spezialfall an etwas, für dessen Erzeugung man in C-ähnlichen Sprachen üblicherweise for-Schleifen verwendet:
 
 ~~~scala
 scala> for {
@@ -179,3 +190,25 @@ scala> for {
 
 res0 = Vector((1,1), (1,2), (1,3), (2,1), (2,2), (2,3), (3,1), (3,2), (3,3))
 ~~~ 
+
+Scalas for comprehension geht übrigens noch über das Konzept der Monade hinaus, indem es erlaubt, bestimmte Ergebnisse zu filtern.
+
+~~~scala
+scala> for {
+     |   i <- 1 to 3
+     |   j <- 1 to 3
+     |   if i < j
+     | } yield (i,j)
+
+res0 = Vector((1,2), (1,3), (2,3))
+~~~ 
+
+Was übersetzt wird zu
+
+~~~scala
+(1 to 3).flatMap(i => (1 to 3).withFilter(j => j < i).map(j => (i,j)))
+~~~
+
+Nun sind *Filter* keine Eigenschaft von Monaden, weshalb ich hier nicht weiter darauf eingehe (wer sich dafür interessiert, möge sich einmal die Queries in [Slick](http://slick.lightbend.com/) anschauen). Allerdings &ndash; deshalb muss es doch erwähnt werden &ndash; sind Monaden ohne Implementierung von `withFilter` nicht hinreichend, um als sog. *Generatoren* in der for comprehension verwendet zu werden.
+
+## Der Typ Monad
