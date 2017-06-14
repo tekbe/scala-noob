@@ -7,7 +7,7 @@ draft = true
 +++
 Was ist eine *Monade*? Diese Frage stellt man sich früher oder später bei der Beschäftigung mit Scala. Eine Antwort darauf wäre, eine Monade ist das, was den Typen `Option[T]`, `Future[T]` und `Stream[T]` gemeinsam ist.
 
-Diese Beispiele für Monaden sind nicht nur sehr geläufig (zur Erinnerung s. [hier](https://www.tutorialspoint.com/scala/scala_options.htm), [hier](http://docs.scala-lang.org/overviews/core/futures.html#futures) und [hier](http://www.mrico.eu/entry/scala_streams)), sie repräsentieren auch intuitiv klare, expressive und vorallem sehr unterschiedliche Konzepte oder Effekte. Wir wollen sehen, wie sich vor dem Hintergrund dieser heterogenen Typen das gemeinsame Konzept der Monade abzeichnet. 
+Diese Beispiele für Monaden sind recht geläufig (zur Erinnerung s. [hier](https://www.tutorialspoint.com/scala/scala_options.htm), [hier](http://docs.scala-lang.org/overviews/core/futures.html#futures) und [hier](http://www.mrico.eu/entry/scala_streams)) und repräsentieren intuitiv klare, expressive und vorallem sehr unterschiedliche Konzepte oder Effekte. Wir wollen sehen, wie sich vor dem Hintergrund dieser heterogenen Typen das gemeinsame Konzept der Monade abzeichnet. 
 
 Als erste Gemeinsamkeit kann man davon sprechen, dass alle diese Beispiele einen typisierten Berechnungskontext bereitstellen. Die Ergebnisse dieser Berechnungen liegen nicht unbedingt vor: die `Option[T]` enthält vielleicht keinen Wert, die Berechnung im `Future[T]` dauert noch an, oder der `Stream[T]` ist unendlich lang und produziert auf Anfrage immer weiter Daten.
 
@@ -130,17 +130,6 @@ trait Future[A] {
 }
 ~~~
 
-Nebenbei: es genügt für eine Monade streng genommen `flatMap` sowie eine Funktion zum Erzeugen des Kontext bereitzustellen (z.B. `apply`). `map` lässt sich dann in Begriffen von `flatMap` und `apply` definieren.
-
-~~~scala
-object Option {
-  def apply[A](x: A): Option[A]
-}
-trait Option[A] {
-  def map[B](f: A => B): Option[B] = flatMap(t => Option(f(t)))
-}
-~~~
-
 Das Liften einer Funktion in den kombinierten Kontext gleichartiger Monaden lässt sich nun also in einen einzigen Ausdruck fassen.
 
 ~~~scala
@@ -176,11 +165,11 @@ for {
 } yield max(v1, v2)
 ~~~
 
-Die geschweiften Klammern markieren den Verbund der Monaden `m1` und `m2` und nach `yield` folgt der in den resultierenden Kontext zu liftende Ausdruck.
+Die geschweiften Klammern markieren den Verbund der Monaden `m1` und `m2` und nach `yield` folgt der in den resultierenden Kontext zu liftende Ausdruck. Das Ergebnis ist wieder von der Art der Monaden `m1` und `m2`. 
 
 Tatsächlich ist diese Schreibweise äquivalent zur Schachtelung von `flatMap` und `map` aus dem vorherigen Abschnitt. Mehr noch, der Scala Compiler übersetzt einen solchen `for`-Ausdruck sogar wortwörtlich in eben jenen geschachtelten Ausdruck.
 
-Bei der sog. *for comprehension* handelt es sich also keinesfalls um eine Schleife, sondern um ein allgemeineres funktionales Konstrukt. Nur in Verbindung mit den Monaden `List[T]` oder `Vector[T]` erinnert das Ergebnis als Spezialfall an etwas, für dessen Erzeugung man in C-ähnlichen Sprachen üblicherweise for-Schleifen verwendet:
+Bei der sog. *for comprehension* handelt es sich also keinesfalls um eine Schleife, sondern um ein allgemeineres funktionales Konstrukt. Nur in Verbindung mit Monaden wie `List[T]` oder `Vector[T]` erinnert das Ergebnis als Spezialfall an etwas, für dessen Erzeugung man in C-ähnlichen Sprachen üblicherweise for-Schleifen verwendet:
 
 ~~~scala
 scala> for {
@@ -191,7 +180,7 @@ scala> for {
 res0 = Vector((1,1), (1,2), (1,3), (2,1), (2,2), (2,3), (3,1), (3,2), (3,3))
 ~~~ 
 
-Scalas for comprehension geht übrigens noch über das Konzept der Monade hinaus, indem es erlaubt, bestimmte Ergebnisse zu filtern.
+Scalas for comprehension geht übrigens noch über die bisher vorgestellte Struktur der Monade hinaus, indem es erlaubt, bestimmte Ergebnisse zu filtern.
 
 ~~~scala
 scala> for {
@@ -200,7 +189,7 @@ scala> for {
      |   if i < j
      | } yield (i,j)
 
-res0 = Vector((1,2), (1,3), (2,3))
+res1 = Vector((1,2), (1,3), (2,3))
 ~~~ 
 
 Was übersetzt wird zu
@@ -209,6 +198,10 @@ Was übersetzt wird zu
 (1 to 3).flatMap(i => (1 to 3).withFilter(j => j < i).map(j => (i,j)))
 ~~~
 
-Nun sind *Filter* keine Eigenschaft von Monaden, weshalb ich hier nicht weiter darauf eingehe (wer sich dafür interessiert, möge sich einmal die Queries in [Slick](http://slick.lightbend.com/) anschauen). Allerdings &ndash; deshalb muss es doch erwähnt werden &ndash; sind Monaden ohne Implementierung von `withFilter` nicht hinreichend, um als sog. *Generatoren* in der for comprehension verwendet zu werden.
+Nun sind *Filter* im Allgemeinen keine Eigenschaft von Monaden, aber es fällt auf, wie gut sie sich in dieses System fügen. Denn in der Regel ergibt es Sinn, wenn eine Monade in der Lage ist, das Fehlen, Ausbleiben oder Auslassen von Ergebnissen auszudrücken. Tatsächlich handelt es sich dann um Monaden mit *Nullelement* (für `Option[T]` wäre das Nullelement beispielweise `None`, für `Stream[T]` ist es `Empty`).
 
-## Der Typ Monad
+
+
+## Monaden ineinander überführen
+
+## Der Typ `Monad[T]`
