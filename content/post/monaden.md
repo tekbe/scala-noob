@@ -6,9 +6,11 @@ title = "Monaden, flatMap() und die Bedeutung von for"
 draft = true
 +++
 
-Was ist eine *Monade*? Diese Frage stellt man sich früher oder später bei der Beschäftigung mit Scala. Eine Antwort darauf wäre, eine Monade ist das, was den Typen `Option[T]`, `Future[T]` und `Stream[T]` gemeinsam ist.
+Was ist eine *Monade*? Diese Frage stellt man sich früher oder später bei der Beschäftigung mit Scala (und Haskell) und dies hier ist die 1001. Antwort darauf. Weitere Antworten sind am Ende des Artikels verlinkt.
 
-Diese Beispiele für Monaden sind recht geläufig (zur Erinnerung s. [hier](https://www.tutorialspoint.com/scala/scala_options.htm), [hier](http://docs.scala-lang.org/overviews/core/futures.html#futures) und [hier](http://www.mrico.eu/entry/scala_streams)) und repräsentieren intuitiv klare, expressive und vorallem sehr unterschiedliche Konzepte oder Effekte. Wir wollen sehen, wie sich vor dem Hintergrund dieser heterogenen Typen das gemeinsame Konzept der Monade abzeichnet. 
+Wenn man mit konkreten Beispielen anfängt, könnte man sagen, eine Monade ist das, was den Typen `Option[T]`, `Future[T]` und `Stream[T]` gemeinsam ist.
+
+Dies sind recht geläufige Exemplare (zur Erinnerung s. [hier](https://www.tutorialspoint.com/scala/scala_options.htm), [hier](http://docs.scala-lang.org/overviews/core/futures.html#futures) und [hier](http://www.mrico.eu/entry/scala_streams)) mit intuitiv klaren, expressiven und vorallem sehr unterschiedlichen Konzepten oder Effekten. Wir wollen sehen, wie sich vor dem Hintergrund dieser heterogenen Typen die Monade abzeichnet. 
 
 Als erste Gemeinsamkeit kann man davon sprechen, dass alle diese Beispiele einen typisierten Berechnungskontext bereitstellen. Die Ergebnisse dieser Berechnungen liegen nicht unbedingt vor: die `Option[T]` enthält vielleicht keinen Wert, die Berechnung im `Future[T]` dauert noch an, oder der `Stream[T]` ist unendlich lang und produziert auf Anfrage immer weiter Daten.
 
@@ -63,7 +65,7 @@ Stattdessen reicht es &ndash; unabhängig davon, ob Werte vorliegen oder nicht &
 
 ## Funktionen in den Kontext heben
 
-Wie wäre es also, wenn wir anstatt Werte aus dem Kontext zu holen, eine von der Art des Kontext unabhängige (aber zum Typparameter des Kontext passende) Funktion 
+Wie wäre es also, wenn wir anstatt Werte aus dem Kontext zu holen, eine von der Art der Monade unabhängige, aber zu ihrem Typparameter passende, Funktion 
 
 ~~~scala
 def length(s: String): Int
@@ -170,7 +172,7 @@ Die geschweiften Klammern markieren den Verbund der Monaden `m1` und `m2` und na
 
 Tatsächlich ist diese Schreibweise äquivalent zur Schachtelung von `flatMap` und `map` aus dem vorherigen Abschnitt. Mehr noch, der Scala Compiler übersetzt einen solchen `for`-Ausdruck sogar wortwörtlich in eben jenen geschachtelten Ausdruck.
 
-Bei der sog. *for comprehension* handelt es sich also keinesfalls um eine Schleife, sondern um ein allgemeineres funktionales Konstrukt. Nur in Verbindung mit Monaden wie `List[T]` oder `Vector[T]` erinnert das Ergebnis als Spezialfall an etwas, für dessen Erzeugung man in C-ähnlichen Sprachen üblicherweise for-Schleifen verwendet:
+Bei der sog. *for comprehension* handelt es sich also keinesfalls um eine Schleife, sondern um ein allgemeineres funktionales Konstrukt. Nur in Verbindung mit Monaden wie `List[T]` oder `Vector[T]` erinnert das Ergebnis als Spezialfall an etwas, für dessen Erzeugung man in C-ähnlichen Sprachen üblicherweise for-Schleifen verwendet.
 
 ~~~scala
 scala> for {
@@ -179,9 +181,10 @@ scala> for {
      | } yield (i,j)
 
 res0 = Vector((1,1), (1,2), (1,3), (2,1), (2,2), (2,3), (3,1), (3,2), (3,3))
-~~~ 
+~~~
+## Filter und Monaden mit Null 
 
-Scalas for comprehension geht übrigens noch über die bisher vorgestellte Struktur der Monade hinaus, indem es erlaubt, bestimmte Ergebnisse zu filtern.
+Scalas for comprehension geht noch über die bisher vorgestellte Struktur der Monade hinaus, indem es erlaubt, bestimmte Ergebnisse zu filtern.
 
 ~~~scala
 scala> for {
@@ -193,17 +196,21 @@ scala> for {
 res1 = Vector((1,2), (1,3), (2,3))
 ~~~ 
 
-Was übersetzt wird zu
+Das wird übersetzt zu
 
 ~~~scala
 (1 to 3).flatMap(i => (1 to 3).withFilter(j => j < i).map(j => (i,j)))
 ~~~
 
-Nun sind *Filter* im Allgemeinen keine Eigenschaft von Monaden, aber es fällt auf, wie gut sie sich in dieses System fügen. Häufig ergibt es ja Sinn, wenn eine Monade in der Lage ist, das Fehlen, Ausbleiben oder Auslassen von Ergebnissen auszudrücken. Tatsächlich handelt es sich dann um Monaden mit sog. *Nullelement* (für `Option[T]` wäre das Nullelement beispielweise `None`, für `Stream[T]` ist es `Empty`). Mit dem Filter `if false` bekommt man entsprechend stets das Nullelement der Monade zum Ergebnis.
+Nun sind *Filter* im Allgemeinen keine Eigenschaft von Monaden, aber es fällt auf, wie gut sie sich in dieses System fügen. Häufig ergibt es ja Sinn, wenn eine Monade in der Lage ist, das Fehlen, Ausbleiben oder Auslassen von Ergebnissen auszudrücken. Tatsächlich handelt es sich dann um Monaden mit einem *Nullelement* (für `Option[T]` wäre das beispielweise `None`, für `Stream[T]` ist es `Empty`).
 
-Als vorläufige Antwort auf die Frage vom Anfang, kann man jetzt sagen, dass Monaden eine bestimmte Datenstruktur oder einen bestimmten Nebeneffekt (rekursive Strukturen, IO, Datenströme, Parallelisierung, Ausnahmebehandlung usw.) kapseln und einen Kontext bereitstellen, der es ermöglicht, die aus der Struktur oder dem Effekt hervorgehenden typisierten Daten beliebig zu transformieren und zu durchsuchen, sowie mehrere Instanzen solcher Strukturen und Effekte bedeutsam miteinander zu verbinden. In Scala dienen dazu die Funktionen `map`, `flatMap` und `withFilter`.
+Mit dem Filter `if false` bekommt man entsprechend stets das Nullelement der Monade zum Ergebnis. Umgekehrt gilt: egal welche Funktion man in das Nullelement einer Monade liftet, mit welchem anderen Kontext man es verbindet oder mit welchem Filter man es durchsucht, das Ergebnis ist stets wieder das Nullelement.
 
-Ein weiteres Beispiel, das nicht aus der Standardbibliothek stammt, sind Datenbankabfragen in [Slick](http://slick.lightbend.com/).
+## So weit erstmal
+
+Als vorläufige Antwort auf die Frage vom Anfang, können wir jetzt sagen: Monaden kapseln eine bestimmte Struktur oder einen bestimmten Nebeneffekt (rekursive Datenstrukturen, I/O-Operationen, Datenströme, Parallelisierung, Ausnahmebehandlung usw.) und stellen zugleich einen Kontext bereit, der es ermöglicht, auf gleichartige Weise die aus der Struktur oder dem Effekt hervorgehenden typisierten Daten zu transformieren und zu durchsuchen, sowie mehrere Instanzen solcher Kontexte bedeutsam miteinander zu verbinden. In Scala gibt es dazu die Funktionen `map`, `flatMap` und `withFilter`.
+
+Ein weiteres Beispiel, diesmal nicht aus der Standardbibliothek, sind Datenbankabfragen in [Slick](http://slick.lightbend.com/).
 
 ~~~scala
 val monadicInnerJoin = for {
@@ -212,8 +219,10 @@ val monadicInnerJoin = for {
 } yield (c.name, s.name)
 ~~~
 
-Das Beispiel habe ich der offiziellen Dokumentation entnommen. Es demonstriert eine typsichere Datenbankabfrage in Scala. Das Verbinden zweier Monaden entspricht hier dem *inner join* zweier Datenbanktabellen.
+Das Codefragment ist der offiziellen Dokumentation entnommen. Es repräsentiert eine Datenbankabfrage und ist geschrieben in typsicherem Scala Code. Das Verbinden von Monaden entspricht hier einem *join* zweier Datenbanktabellen.
 
-## Sich um den Kontext kümmern
+Wie man sieht, sind Monaden nicht nur geradezu mindblowing, sondern auch unfassbar praktisch.
+
+## Sich schließlich doch um den Kontext kümmern
 
 ## Der Typ `Monad[T]`
