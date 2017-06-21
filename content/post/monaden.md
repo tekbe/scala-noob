@@ -23,12 +23,13 @@ val f = Future(someLongLastingComputation())
 val opt = Option(thisCouldBeNull())
 ~~~
 
-Im Falle von `Stream[T]` wird die `apply` Funktion eher nicht verwendet. Zwar kann man einen `Stream[T]` um eine gegebene Sequenz von Werten herum konstruieren, im Allgemeinen sind Streams aber *lazy* und *unbegrenzt*, d.h. potentiell unendlich viele Werte werden jeweils erst bei Bedarf bereitgestellt. Man definiert deshalb bei der Konstruktion von Streams nur, wie der jeweils nächste Wert erzeugt wird.
-
+Im Falle von `Stream[T]` wird die `apply` Funktion eher nicht verwendet. Zwar kann man einen `Stream[T]` um eine gegebene Sequenz von Werten herum konstruieren, im Allgemeinen sind Streams aber *lazy* und *unbegrenzt*, d.h. potentiell unendlich viele Werte werden jeweils erst bei Bedarf bereitgestellt. Man definiert deshalb bei der Konstruktion von Streams nur,
 ~~~scala
 // unendlicher Strom von Zufallszahlen
 def randomGenerator(): Stream[Double] = math.random #:: randomGenerator()
 ~~~
+
+wie der jeweils nächste Wert erzeugt wird.
 
 ## Werte aus dem Kontext herausholen
 
