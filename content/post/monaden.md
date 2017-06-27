@@ -116,7 +116,7 @@ val dice1: Stream[Int] = randomGenerator().map(r => diceThrow(r))
 val dice2: Stream[Int] = randomGenerator().map(r => diceThrow(r))
 ~~~ 
 
-Beide Würfel können unbeschränkt oft geworfen werden und merken sich jeweils die Ergebnisse (*memoization*) &ndash; beides Eigenschaften des Streamkontexts!
+Beide Würfel können unbeschränkt oft geworfen werden und merken sich jeweils die Ergebnisse der Würfe (*memoization*) &ndash; beides Eigenschaften des Streamkontexts!
 
 ## Gleichartige Kontexte verbinden
 
@@ -263,16 +263,13 @@ Da schon von Funktor und Nullelement die Rede war, ist es vielleicht nicht über
 
 Was ist nun eine Kategorie? Um mit konkreten Beispielen anzufangen, könnte man sagen, eine Kategorie ist das, was den Strukturen Monade (mit *bind* bzw. `flatMap`), Funktion (mit *Komposition* bzw. `f(x) = g(h(x))`) und natürliche Zahl (mit Multiplikation, `a = b*c*d`) gemeinsam ist...
 
-Nun, man kann &ndash; d.h. nicht ich, aber doch prinzipiell &ndash;  hier rekursiv wieder einsteigen. Und das ist für Programmierer durchaus relevant. Man wird sich dann allerdings irgendwann, d.h. ein Rekursionsschritt weiter, fragen, was den mathematischen Teildisziplinen Berechenbarkeitstheorie, Logik und Kategorientheorie gemeinsam ist. Wer hier weitergehen möchte, dem sei der Kanal von [Bartosz Milewski](https://www.youtube.com/user/DrBartosz) ans Herz gelegt. 
+Nun, man kann tatsächlich (d.h. nicht ich, aber doch prinzipiell)  hier rekursiv wieder einsteigen. Und das ist für Programmierer durchaus relevant. Man wird sich dann vielleicht sogar irgendwann, nämlich ein Rekursionsschritt weiter, fragen, was den mathematischen Teildisziplinen Berechenbarkeitstheorie, Logik und Kategorientheorie gemeinsam ist. Wer hier weitergehen möchte, dem sei der Kanal von [Bartosz Milewski](https://www.youtube.com/user/DrBartosz) ans Herz gelegt. Hier nur die Basisbegriffe in aller Kürze: 
 
-Allgemein beschreiben Kategorien Abbildungen oder *Morphismen* zwischen Objekten. Diese Abbildungen lassen sich verketten und eine solche *Komposition* ist wiederum ein Morphismus. Kompositionen von Morphismen sind dabei assoziativ (`(a*b)*c = a*(b*c)`) und zu jedem Objekt gibt es einen identischen Morphismus, das *neutrale Element* oder *Einselement* (`a*1 = 1*a = a`).
+Kategorien beschreiben Abbildungen oder *Morphismen* zwischen Objekten. Diese Abbildungen lassen sich zu neuen Morphismen verketten. Solche *Kompositionen* sind assoziativ (`(a*b)*c = a*(b*c)`) und zu jedem Objekt gibt es einen identischen Morphismus, das *neutrale Element* oder *Einselement* (`a*1 = 1*a = a`).
 
-Ein Objekt ist hierbei kein einzelnes Ding, sondern vielmehr eine Klasse gleichartiger Strukturen (wobei die Strukturen selbst vernachlässigt werden). So hat z.B. die Kategorie natürliche Zahlen mit Multiplikation nur ein einziges Objekt, eben die natürlichen Zahlen, und jede Abbildung erfolgt *von* einer natürlichen Zahl *zu* einer natürlichen Zahl. Bei der Komposition von Funktionen mit typisierten Parametern, sind es die Datentypen (bzw. die möglichen Werte dieser Typen), die die verschiedenen Objekte der Kategorie bilden. So wie die Funktionskomposition `f(x) = g(h(x))` nur möglich ist, wenn der Ergebnistyp von `h` zum Eingabetyp von `g` passt, sind auch allgemein Morphismen nur dann komponierbar, wenn Zielobjekt des einen Morphismus und Ausgangsobjekt des anderen Morphismus übereinstimmen.
+Ein Objekt ist hierbei kein einzelnes Ding, sondern vielmehr eine Klasse gleichartiger Strukturen (wobei die Strukturen selbst vernachlässigt werden). So hat z.B. die Kategorie natürliche Zahlen mit Multiplikation nur ein einziges Objekt, eben die natürlichen Zahlen: Jede Abbildung erfolgt *von* einer natürlichen Zahl *zu* einer natürlichen Zahl. Bei der Komposition von Funktionen, sind es die Datentypen der Parameter, die die Objekte der Kategorie bilden. Und so wie eine Funktionskomposition `f(x) = g(h(x))` nur möglich ist, wenn der Ergebnistyp von `h` zum Eingabetyp von `g` passt, sind auch allgemein zwei Morphismen nur dann komponierbar, wenn das Zielobjekt des einen mit dem Ausgangsobjekt des anderen übereinstimmt. Das Ausgangsobjekt einer Komposition `g•h` (`g` folgt auf `h`) entspricht dann demjenigen von `h`, das Zielobjekt demjenigen von `g`.
 
-Was eine Kategorie also ausmacht, ist, in einem Satz, die Abbildung zwischen Objekten (d.h. Strukturen gleicher Art), die assoziative Komponierbarkeit dieser Abbildungen, sowie ein Begriff von Identität für jedes Objekt der Kategorie (d.h. eine neutrale Abbildung). 
-
-
-
+Was eine Kategorie also ausmacht, ist, in einem Satz, die Abbildung zwischen Objekten (Strukturen gleicher Art), die assoziative Komponierbarkeit dieser Abbildungen, sowie ein Begriff von Identität für jedes Objekt der Kategorie (eine neutrale Abbildung). 
 
 ## Der Typ `Monad[T]`
 
