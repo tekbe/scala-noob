@@ -188,9 +188,9 @@ Auf jeder Ebene muss man &bdquo;`flatten`&ldquo;. Nur die innerste Monade ist ni
 
 Man würde wohl lieber etwas schreiben wie 
 ~~~scala
-join(m1, m2).map(v => max(v._1, v._2))
+bind(m1, m2).map(v => max(v._1, v._2))
 ~~~
-Monaden verbinden, Funktion in den resultierenden Kontext liften, fertig. Nun gibt es keine `join` Funktion in der Standardbibliothek, aber wie wäre es stattdessen mit
+Monaden verbinden, Funktion in den resultierenden Kontext liften, fertig. Nun gibt es keine `bind` Funktion in der Standardbibliothek, aber wie wäre es stattdessen mit
 
 ~~~scala
 for {
@@ -255,9 +255,24 @@ val monadicInnerJoin = for {
 
 Das Codefragment ist der offiziellen Dokumentation entnommen. Es repräsentiert eine Datenbankabfrage in Scala Code. Das Verbinden von Monaden entspricht hier dem *join* zweier Datenbanktabellen.
 
-Abstraktion und Pragmatismus sind hier keine Gegensätze. Selbst wer noch nie etwas von Monaden gehört hat, kann sie effektiv einsetzen. Dass sich in Scala ein eigenes Sprachkonstrukt nur um Monaden kümmert, verdeutlicht ihren Stellenwert. 
+Abstraktion und Pragmatismus sind hier keine Gegensätze. Selbst wer noch nie etwas von Monaden gehört hat, kann sie effektiv einsetzen. Dass sich in Scala ein Sprachkonstrukt eigens um Monaden dreht, mag ihren Stellenwert noch einmal unterstreichen. 
 
 ## Theorie
+
+Da schon von Funktor und Nullelement die Rede war, ist es vielleicht nicht überraschend, dass Monaden eine mathematisch fundierte Struktur haben. Der Zweig der Mathematik, der sich u.a. mit Monaden beschäftigt ist die [Kategorientheorie](https://de.wikipedia.org/wiki/Kategorientheorie).
+
+Was ist nun eine Kategorie? Um mit konkreten Beispielen anzufangen, könnte man sagen, eine Kategorie ist das, was den Strukturen Monade (mit *bind* bzw. `flatMap`), Funktion (mit *Komposition* bzw. `f(x) = g(h(x))`) und natürliche Zahl (mit Multiplikation, `a = b*c*d`) gemeinsam ist...
+
+Nun, man kann &ndash; d.h. nicht ich, aber doch prinzipiell &ndash;  hier rekursiv wieder einsteigen. Und das ist für Programmierer durchaus relevant. Man wird sich dann allerdings irgendwann, d.h. ein Rekursionsschritt weiter, fragen, was den mathematischen Teildisziplinen Berechenbarkeitstheorie, Logik und Kategorientheorie gemeinsam ist. Wer hier weitergehen möchte, dem sei der Kanal von [Bartosz Milewski](https://www.youtube.com/user/DrBartosz) ans Herz gelegt. 
+
+Allgemein beschreiben Kategorien Abbildungen oder *Morphismen* zwischen Objekten. Diese Abbildungen lassen sich verketten und eine solche *Komposition* ist wiederum ein Morphismus. Kompositionen von Morphismen sind dabei assoziativ (`(a*b)*c = a*(b*c)`) und zu jedem Objekt gibt es einen identischen Morphismus, das *neutrale Element* oder *Einselement* (`a*1 = 1*a = a`).
+
+Ein Objekt ist hierbei kein einzelnes Ding, sondern vielmehr eine Klasse gleichartiger Strukturen (wobei die Strukturen selbst vernachlässigt werden). So hat z.B. die Kategorie natürliche Zahlen mit Multiplikation nur ein einziges Objekt, eben die natürlichen Zahlen, und jede Abbildung erfolgt *von* einer natürlichen Zahl *zu* einer natürlichen Zahl. Bei der Komposition von Funktionen mit typisierten Parametern, sind es die Datentypen (bzw. die möglichen Werte dieser Typen), die die verschiedenen Objekte der Kategorie bilden. So wie die Funktionskomposition `f(x) = g(h(x))` nur möglich ist, wenn der Ergebnistyp von `h` zum Eingabetyp von `g` passt, sind auch allgemein Morphismen nur dann komponierbar, wenn Zielobjekt des einen Morphismus und Ausgangsobjekt des anderen Morphismus übereinstimmen.
+
+Was eine Kategorie also ausmacht, ist, in einem Satz, die Abbildung zwischen Objekten (d.h. Strukturen gleicher Art), die assoziative Komponierbarkeit dieser Abbildungen, sowie ein Begriff von Identität für jedes Objekt der Kategorie (d.h. eine neutrale Abbildung). 
+
+
+
 
 ## Der Typ `Monad[T]`
 
