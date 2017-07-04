@@ -6,24 +6,24 @@ title = "Monaden, flatMap() und die Bedeutung von for"
 draft = true
 +++
 
-Was ist eine *Monade*? Diese Frage stellt man sich früher oder später bei der Beschäftigung mit Scala und hier ist die 1001. Antwort darauf. (Weitere Antworten sind am Ende des Artikels verlinkt.)
+Was ist eine *Monade*? Diese Frage stellt man sich früher oder später bei der Beschäftigung mit Funktionaler Programmierung. Und hier ist die 1001. Antwort darauf! (Weitere Antworten sind am Ende des Artikels verlinkt.)
 
 Um mit konkreten Beispielen anzufangen, könnte man sagen, eine Monade ist das, was den Typen `Option[T]`, `Future[T]` und `Stream[T]` gemeinsam ist.
 
 Sie sind recht geläufige Exemplare (zur Erinnerung s. [hier](https://www.tutorialspoint.com/scala/scala_options.htm), [hier](http://docs.scala-lang.org/overviews/core/futures.html#futures) und [hier](http://www.mrico.eu/entry/scala_streams)) mit intuitiv klaren, expressiven und vorallem sehr unterschiedlichen Konzepten oder Effekten. Wir wollen sehen, wie sich vor dem Hintergrund dieser heterogenen Typen die Monade abzeichnet. 
 
-Als erste Gemeinsamkeit kann man davon sprechen, dass alle diese Beispiele einen typisierten Berechnungskontext bereitstellen. Die Ergebnisse dieser Berechnungen liegen nicht unbedingt vor: die `Option[T]` enthält vielleicht keinen Wert, die Berechnung im `Future[T]` dauert noch an, oder der `Stream[T]` ist unendlich lang und produziert auf Anfrage immer weiter Daten.
+Als erste Gemeinsamkeit kann man davon sprechen, dass alle diese Beispiele einen typisierten Berechnungskontext bereitstellen. Die Ergebnisse dieser Berechnungen liegen nicht unbedingt vor: vielleich enthält `Option[T]` keinen Wert, dauert die Berechnung im `Future[T]` noch an, oder ist der `Stream[T]` unendlich lang und produziert auf Anfrage immer weiter Daten.
 
 ## Einen Kontext erzeugen
 
-Jede Monade ist in der Lage, ihren spezifischen Kontext zu erzeugen, was zumeist über die `apply` Funktion des *Companion Object* geschieht.
+Jede Monade ist in der Lage, ihren spezifischen Kontext zu erzeugen, was zumeist über die `apply` Methode des *Companion Object* geschieht.
 
 ~~~scala
 val f = Future(someLongLastingComputation())
 val opt = Option(thisCouldBeNull())
 ~~~
 
-Im Falle von `Stream[T]` wird die `apply` Funktion eher nicht verwendet. Zwar kann man einen `Stream[T]` um eine gegebene Sequenz von Werten herum konstruieren, im Allgemeinen sind Streams aber *lazy* und *unbegrenzt*, d.h. potentiell unendlich viele Werte werden jeweils erst bei Bedarf bereitgestellt. Man definiert deshalb bei der Konstruktion von Streams nur,
+Im Falle von `Stream[T]` wird die `apply` Methode eher nicht verwendet. Zwar kann man einen `Stream[T]` um eine gegebene Sequenz von Werten herum konstruieren, im Allgemeinen sind Streams aber *lazy* und *unbegrenzt*, d.h. potentiell unendlich viele Werte werden jeweils erst bei Bedarf bereitgestellt. Man definiert deshalb bei der Konstruktion von Streams nur,
 ~~~scala
 // unendlicher Strom von Zufallszahlen
 def randomGenerator(): Stream[Double] = math.random #:: randomGenerator()
@@ -78,7 +78,7 @@ def length(s: Future[String]): Future[Int]
 def length(s: Stream[String]): Stream[Int]
 ~~~
 
-Stattdessen reicht es &ndash; unabhängig davon, ob Werte vorliegen oder nicht &ndash; nur zu *beschreiben*, was mit ihnen geschehen soll, ohne diese Berechnung auch direkt auszuführen (zu *evaluieren*).     
+Stattdessen reicht es (unabhängig davon, ob Werte vorliegen oder nicht) nur zu *beschreiben*, was mit ihnen geschehen soll, ohne diese Berechnung auch direkt auszuführen bzw. zu *evaluieren*.
 
 ## Funktionen in den Kontext heben
 
@@ -88,7 +88,7 @@ Wie wäre es also, wenn wir anstatt Werte aus dem Kontext zu holen, eine von der
 def length(s: String): Int
 ~~~
 
-in den Kontext &bdquo;hinein heben&ldquo;? Genau das ist die erste wesentliche Eigenschaft von Monaden. Sie erlauben das *liften* von Funktionen in ihren Kontext über ihre `map` Funktion und damit die Modifikation der gekapselten Berechnung.
+in den Kontext &bdquo;hinein heben&ldquo;? Genau das ist die erste wesentliche Eigenschaft von Monaden. Sie erlauben das *liften* von Funktionen in ihren Kontext über ihre `map` Methode und damit die Modifikation der gekapselten Berechnung.
 
 ~~~scala
 trait Future[A] {
@@ -236,13 +236,13 @@ Das wird übersetzt zu
 (1 to 3).flatMap(i => (1 to 3).withFilter(j => j < i).map(j => (i,j)))
 ~~~
 
-Nun sind *Filter* im Allgemeinen keine Eigenschaft von Monaden, aber es fällt auf, wie gut sie sich in dieses System fügen. Häufig ergibt es ja Sinn, wenn eine Monade in der Lage ist, das Fehlen, Ausbleiben oder Auslassen von Ergebnissen auszudrücken. Tatsächlich handelt es sich dann um Monaden mit einem *Nullelement* (für `Option[T]` wäre das beispielweise `None`, für `Stream[T]` ist es `Empty`).
+Nun sind *Filter* im Allgemeinen keine Eigenschaft von Monaden, aber es fällt auf, wie gut sie sich in dieses System fügen. Häufig ergibt es ja Sinn, wenn eine Monade in der Lage ist, das Fehlen, Ausbleiben oder Auslassen von Ergebnissen auszudrücken. Tatsächlich handelt es sich dann um Monaden mit einem *Nullobjekt* (für `Option[T]` wäre das beispielweise `None`, für `Stream[T]` ist es `Empty`).
 
 Mit dem Filter `if false` bekommt man entsprechend stets das Nullelement der Monade zum Ergebnis. Umgekehrt gilt: egal welche Funktion man in das Nullelement einer Monade liftet, mit welchem anderen Kontext man es verbindet oder mit welchem Filter man es durchsucht, das Ergebnis ist stets wieder das Nullelement.
 
 ## Zwischenfazit
 
-Als vorläufige Antwort auf die Frage vom Anfang, können wir jetzt sagen: Monaden kapseln eine bestimmte Struktur oder einen bestimmten Nebeneffekt (rekursive Datenstrukturen, I/O-Operationen, Datenströme, Parallelisierung, Ausnahmebehandlung usw.) und stellen zugleich einen Kontext bereit, der es ermöglicht, auf gleichartige Weise die aus der Struktur oder dem Effekt hervorgehenden typisierten Daten zu transformieren und zu durchsuchen, sowie mehrere Instanzen solcher Kontexte bedeutsam miteinander zu verbinden. In Scala gibt es dazu die Funktionen `map`, `flatMap` und `withFilter`.
+Als vorläufige Antwort auf die Frage vom Anfang, können wir jetzt sagen: Monaden kapseln eine bestimmte Struktur oder einen bestimmten Nebeneffekt (rekursive Datenstrukturen, I/O-Operationen, Datenströme, Parallelisierung, Ausnahmebehandlung usw.) und stellen zugleich einen Kontext bereit, der es ermöglicht, auf gleichartige Weise die aus der Struktur oder dem Effekt hervorgehenden typisierten Daten zu transformieren und zu durchsuchen, sowie mehrere Instanzen solcher Kontexte bedeutsam miteinander zu verbinden. In Scala gibt es dazu die Methoden `map`, `flatMap` und `withFilter`.
 
 Ein weiteres anschauliches Beispiel für Monaden, diesmal nicht aus der Standardbibliothek, sind Datenbankabfragen in [Slick](http://slick.lightbend.com/).
 
@@ -261,15 +261,105 @@ Abstraktion und Pragmatismus sind hier keine Gegensätze. Selbst wer noch nie et
 
 Da schon von Funktor und Nullelement die Rede war, ist es vielleicht nicht überraschend, dass Monaden eine mathematisch fundierte Struktur haben. Der Zweig der Mathematik, der sich u.a. mit Monaden beschäftigt ist die [Kategorientheorie](https://de.wikipedia.org/wiki/Kategorientheorie).
 
-Was ist nun eine Kategorie? Um mit konkreten Beispielen anzufangen, könnte man sagen, eine Kategorie ist das, was den Strukturen Monade (mit *bind* bzw. `flatMap`), Funktion (mit *Komposition* bzw. `f(x) = g(h(x))`) und natürliche Zahl (mit Multiplikation, `a = b*c*d`) gemeinsam ist...
+Was ist nun eine Kategorie? Um mit konkreten Beispielen anzufangen, könnte man sagen, eine Kategorie ist das, was Monaden (mit *bind* bzw. `flatMap`), Funktionen (mit *Komposition* bzw. `f(x) = g(h(x))`) und natürlichen Zahlen (mit Multiplikation, `a = b*c*d`) gemeinsam ist...
 
-Nun, man kann tatsächlich (d.h. nicht ich, aber doch prinzipiell)  hier rekursiv wieder einsteigen. Und das ist für Programmierer durchaus relevant. Man wird sich dann vielleicht sogar irgendwann, nämlich ein Rekursionsschritt weiter, fragen, was den mathematischen Teildisziplinen Berechenbarkeitstheorie, Logik und Kategorientheorie gemeinsam ist. Wer hier weitergehen möchte, dem sei der Kanal von [Bartosz Milewski](https://www.youtube.com/user/DrBartosz) ans Herz gelegt. Hier nur die Basisbegriffe in aller Kürze: 
+...nun, man kann (d.h. nicht ich, aber prinzipiell) hier tatsächlich rekursiv wieder einsteigen. Und das ist für Programmierer durchaus relevant. Man wird sich dann vielleicht sogar irgendwann, nämlich ein Rekursionsschritt weiter, fragen, was den mathematischen Teildisziplinen Berechenbarkeitstheorie, Logik und Kategorientheorie gemeinsam ist. Wer hier weitergehen möchte, dem sei der Kanal von [Bartosz Milewski](https://www.youtube.com/user/DrBartosz) ans Herz gelegt. Hier nur ein paar Grundbegriffe in aller Kürze: 
 
 Kategorien beschreiben Abbildungen oder *Morphismen* zwischen Objekten. Diese Abbildungen lassen sich zu neuen Morphismen verketten. Solche *Kompositionen* sind assoziativ (`(a*b)*c = a*(b*c)`) und zu jedem Objekt gibt es einen identischen Morphismus, das *neutrale Element* oder *Einselement* (`a*1 = 1*a = a`).
 
-Ein Objekt ist hierbei kein einzelnes Ding, sondern vielmehr eine Klasse gleichartiger Strukturen (wobei die Strukturen selbst vernachlässigt werden). So hat z.B. die Kategorie natürliche Zahlen mit Multiplikation nur ein einziges Objekt, eben die natürlichen Zahlen: Jede Abbildung erfolgt *von* einer natürlichen Zahl *zu* einer natürlichen Zahl. Bei der Komposition von Funktionen, sind es die Datentypen der Parameter, die die Objekte der Kategorie bilden. Und so wie eine Funktionskomposition `f(x) = g(h(x))` nur möglich ist, wenn der Ergebnistyp von `h` zum Eingabetyp von `g` passt, sind auch allgemein zwei Morphismen nur dann komponierbar, wenn das Zielobjekt des einen mit dem Ausgangsobjekt des anderen übereinstimmt. Das Ausgangsobjekt einer Komposition `g•h` (`g` folgt auf `h`) entspricht dann demjenigen von `h`, das Zielobjekt demjenigen von `g`.
+Ein Objekt ist hierbei kein einzelnes Ding, sondern eine Klasse gleichartiger Strukturen (wobei die Strukturen selbst vernachlässigt werden). So hat z.B. die Kategorie natürliche Zahlen mit Multiplikation nur ein einziges Objekt, eben die natürlichen Zahlen: Jede Abbildung erfolgt *von* einer natürlichen Zahl *zu* einer natürlichen Zahl. Bei der Komposition von Funktionen, sind die Objekte die Datentypen, über die die Funktionen definiert sind. Und so wie eine Funktionskomposition `f(x) = g(h(x))` nur möglich ist, wenn der Ergebnistyp von `h` zum Eingabetyp von `g` passt, sind auch allgemein zwei Morphismen einer beliebigen Kategorie nur dann komponierbar, wenn das Endobjekt des einen mit dem Anfangsobjekt des anderen übereinstimmt. Das Anfangsobjekt einer Komposition `g•h` (&bdquo;`g` folgt auf `h`&ldquo;) entspricht dann demjenigen von `h`, das Endobjekt demjenigen von `g`.
 
-Was eine Kategorie also ausmacht, ist, in einem Satz, die Abbildung zwischen Objekten (Strukturen gleicher Art), die assoziative Komponierbarkeit dieser Abbildungen, sowie ein Begriff von Identität für jedes Objekt der Kategorie (eine neutrale Abbildung). 
+Was eine Kategorie also ausmacht, sind, in einem Satz, 
+
+- die Abbildungen bzw. Morphismen zwischen Objekten (Strukturen gleicher Art), 
+- deren assoziative Komponierbarkeit, sowie 
+- jeweils ein Begriff von Identität (ein neutraler Morphismus) für alle Objekte der Kategorie. 
+
+## Praxis
+
+Wir finden diese Aspekte bei Monaden wieder. Nehmen wir als Beispiel `Option[T]`.
+
+~~~scala
+sealed trait Option[+T] {
+  // Komposition, allgemein "bind" 
+  def flatMap[U](f: T => Option[U]): Option[U] = this match {
+    case Some(x) => f(x)
+    case None => None
+  }
+  // map ist ein Spezialfall von flatMap 
+  def map[U](f: T => U): Option[U] = flatMap(x => Some(f(x)))
+}
+
+// Konstruktion, allgemein "unit" oder Eins
+case class Some[T](x: T) extends Option[T]
+// Null
+case object None extends Option[Nothing]
+
+object Option {
+  def unit[T]: T => Option[T] = x => Some(x)
+  def zero[T]: T => Option[T] = _ => None
+}
+~~~
+
+Instanzen von `Option[T]` mit übereinstimmenden Typparametern bilden jeweils die Objekte der Kategorie. Seien `X`, `Y` und `Z` drei beliebige Typen und 
+
+~~~scala
+val x: X
+val m: Option[X]
+def f: X => Option[Y]
+def g: Y => Option[Z]
+~~~
+
+dann ist `m.flatMap(f)` ein Morphismus von `Option[X]` nach `Option[Y]` und `m.flatMap(f).flatMap(g)` die Komposition zweier Morphismen mit Anfangsobjekt `Option[X]` und Endobjekt `Option[Z]`. 
+
+`m.flatMap(unit)` ist der *neutrale Morphismus* und `m.flatMap(zero)` ist der *Nullmorphismus* (mit `None` als *Nullobjekt*).
+
+Es gelten nun die folgenden monadischen Gesetze:
+
+~~~scala
+// Assoziativität
+m.flatMap(f).flatMap(g) == m.flatMap(x => f(x).flatMap(g))
+// Identität / Eins
+unit(x).flatMap(f) == f(x)
+f(x).flatMap(unit) == f(x)
+// Null
+zero(x).flatMap(f) == None
+f(x).flatMap(zero) == None
+~~~
+
+Damit ist `Option[T]` auch im streng mathematischen Sinn eine Kategorie mit Nullobjekt. 
+
+Übersetzt auf die for comprehension bedeutet Assoziativität, dass geschachtelte `for` Ausdrücke gleichartiger Monaden auch untereinander geschrieben werden können:
+
+~~~scala
+// m.flatMap(f).flatMap(g)
+for {
+  y <- for (x <- m; y <- f(x)) yield y
+  z <- g(y)
+} yield z
+~~~
+
+ist das Gleiche wie
+
+~~~scala
+// m.flatMap(x => f(x).flatMap(g))
+for {
+  x <- m
+  y <- f(x)
+  z <- g(y)
+} yield z
+~~~
+
+Und wie schon im Abschnitt zum Suchen und Filtern beschrieben, ist der folgende Ausdruck
+
+~~~scala
+for {
+  x <- m
+  if false // unerfüllbar
+} yield x
+~~~
+
+stets eine Abbildung auf das Nullobjekt der Monade (`None` für `Option[T]`).
 
 ## Der Typ `Monad[T]`
 
