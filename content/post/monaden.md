@@ -170,7 +170,7 @@ Das Liften einer Funktion in den kombinierten Kontext gleichartiger Monaden läs
 val r: Future[Int] = f1.flatMap(v1 => f2.map(v2 => max(v1, v2)))
 ~~~
 
-Leider passt das nicht recht zu unserem intuitiven Verständnis. Zusehr tritt die Schachtelung in den Vordergrund, die doch nur ein Mittel zum Verbinden der Monaden sein sollte.
+Leider passt das nicht recht zu unserem intuitiven Verständnis. Zu sehr tritt die Schachtelung in den Vordergrund, die doch nur ein Mittel zum Verbinden der Monaden sein sollte.
 
 Man kann sich vorstellen, wie schnell es unübersichtlich wird, wenn mehr als zwei Monaden im Spiel sind.
 
@@ -188,9 +188,9 @@ Auf jeder Ebene muss man &bdquo;`flatten`&ldquo;. Nur die innerste Monade ist ni
 
 Man würde wohl lieber etwas schreiben wie 
 ~~~scala
-bind(m1, m2).map(v => max(v._1, v._2))
+join(m1, m2).map(v => max(v._1, v._2))
 ~~~
-Monaden verbinden, Funktion in den resultierenden Kontext liften, fertig. Nun gibt es keine `bind` Funktion in der Standardbibliothek, aber wie wäre es stattdessen mit
+Monaden verbinden, Funktion in den resultierenden Kontext liften, fertig. Nun gibt es keine `join` Funktion in der Standardbibliothek, aber wie wäre es stattdessen mit
 
 ~~~scala
 for {
@@ -199,11 +199,11 @@ for {
 } yield max(v1, v2)
 ~~~
 
-Die geschweiften Klammern markieren den Verbund der Monaden `m1` und `m2` und nach `yield` folgt der in den resultierenden Kontext zu liftende Ausdruck. Das Ergebnis ist wieder von der Art der Monaden `m1` und `m2`. 
+Die geschweiften Klammern markieren den Verbund gleichartiger Monaden und nach `yield` folgt die in den resultierenden Kontext zu liftende Funktion. Das Ergebnis ist wieder von gleicher Art (also ein `Option[T]` oder `Future[T]` oder ...). 
 
-Tatsächlich ist diese Schreibweise äquivalent zur Schachtelung von `flatMap` und `map` aus dem vorherigen Abschnitt. Mehr noch, der Scala Compiler übersetzt einen solchen `for`-Ausdruck sogar wortwörtlich in eben jenen geschachtelten Ausdruck.
+Tatsächlich ist diese Schreibweise äquivalent zur Schachtelung von `flatMap` und `map` aus dem vorherigen Abschnitt. Mehr noch, der Scala Compiler übersetzt einen solchen `for`-Ausdruck sogar wortwörtlich in eben jenen geschachtelten Ausdruck! `yield ...` entspricht dabei dem innersten `map(...)`.
 
-Bei der sog. *for comprehension* handelt es sich also keinesfalls um eine Schleife, sondern um ein allgemeineres funktionales Konstrukt. Nur in Verbindung mit Monaden wie `List[T]` oder `Vector[T]` erinnert das Ergebnis als Spezialfall an etwas,
+Bei der sog. *for comprehension* handelt es sich also keinesfalls um eine Schleife. Nur in Verbindung mit Monaden wie `List[T]` oder `Vector[T]` erinnert das Ergebnis als Spezialfall an etwas, für dessen Erzeugung man in C-ähnlichen Sprachen üblicherweise for-Schleifen verwendet.
 
 ~~~scala
 scala> for {
@@ -214,7 +214,6 @@ scala> for {
 res0 = Vector((1,1), (1,2), (1,3), (2,1), (2,2), (2,3), (3,1), (3,2), (3,3))
 ~~~
 
-für dessen Erzeugung man in C-ähnlichen Sprachen üblicherweise for-Schleifen verwendet.
 
 ## Suchen und Filtern und Monaden mit Null 
 
@@ -275,29 +274,31 @@ Was eine Kategorie also ausmacht, sind, in einem Satz,
 - deren assoziative Komponierbarkeit, sowie 
 - jeweils ein Begriff von Identität (ein neutraler Morphismus) für alle Objekte der Kategorie. 
 
-## Praxis
-
-Wir finden diese Aspekte bei Monaden wieder. Nehmen wir als Beispiel `Option[T]`.
+Wir finden diese Aspekte bei Monaden wieder. Implementieren wir als Beispiel `Option[T]`.
 
 ~~~scala
-sealed trait Option[+T] {
-  // Komposition, allgemein "bind" 
-  def flatMap[U](f: T => Option[U]): Option[U] = this match {
-    case Some(x) => f(x)
-    case None => None
-  }
-  // map ist ein Spezialfall von flatMap 
-  def map[U](f: T => U): Option[U] = flatMap(x => Some(f(x)))
+object Option {
+  // Konstruktion
+  def unit[T]: T => Option[T] = x => Some(x)
+  // Nullobjekt
+  val zero: Option[Nothing] = None
 }
 
-// Konstruktion, allgemein "unit" oder Eins
-case class Some[T](x: T) extends Option[T]
-// Null
 case object None extends Option[Nothing]
+case class Some[T](x: T) extends Option[T]
 
-object Option {
-  def unit[T]: T => Option[T] = x => Some(x)
-  def zero[T]: T => Option[T] = _ => None
+sealed trait Option[+T] {
+  import Option._
+  // Komposition
+  def flatMap[U](f: T => Option[U]): Option[U] = this match {
+    case None => this
+    case Some(x) => f(x)
+  }
+  // Liften zurückgeführt auf flatMap und unit
+  def map[U](f: T => U): Option[U] = flatMap(f andThen unit)
+  // Filtern zurückgeführt auf flatMap, unit und zero
+  def filter(p: T => Boolean): Option[T] = 
+    flatMap(x => if(p(x)) unit(x) else zero)
 }
 ~~~
 
@@ -312,54 +313,76 @@ def g: Y => Option[Z]
 
 dann ist `m.flatMap(f)` ein Morphismus von `Option[X]` nach `Option[Y]` und `m.flatMap(f).flatMap(g)` die Komposition zweier Morphismen mit Anfangsobjekt `Option[X]` und Endobjekt `Option[Z]`. 
 
-`m.flatMap(unit)` ist der *neutrale Morphismus* und `m.flatMap(zero)` ist der *Nullmorphismus* (mit `None` als *Nullobjekt*).
+`m.flatMap(unit)` ist der *neutrale Morphismus* und `m.flatMap(_ => zero)` ist der *Nullmorphismus* (mit *Nullobjekt* `None`).
 
-Es gelten nun die folgenden monadischen Gesetze:
+Wie an `map` und `filter` ersichtlich ist, sind diese Methoden nicht wesentlich für Monaden, denn sie lassen sich auf die Implementierungen von `unit` (Wie wird der Kontext erzeugt?), `flatMap` (Wie werden Morphismen komponiert?) und `zero` (Was ist das Nullobjekt?) zurückführen.
+
+Es gelten nun die folgenden monadischen Gesetze (jeder mag sich selbst davon überzeugen):
 
 ~~~scala
 // Assoziativität
 m.flatMap(f).flatMap(g) == m.flatMap(x => f(x).flatMap(g))
-// Identität / Eins
+// Identität / Neutralität
+m.flatMap(unit) == m
 unit(x).flatMap(f) == f(x)
-f(x).flatMap(unit) == f(x)
-// Null
-zero(x).flatMap(f) == None
-f(x).flatMap(zero) == None
+m.filter(_ => true) == m
+// Nullobjekt
+zero.flatMap(f) == zero
+m.flatMap(_ => zero) == zero
+m.filter(_ => false) == zero
 ~~~
 
-Damit ist `Option[T]` auch im streng mathematischen Sinn eine Kategorie mit Nullobjekt. 
-
-Übersetzt auf die for comprehension bedeutet Assoziativität, dass geschachtelte `for` Ausdrücke gleichartiger Monaden auch untereinander geschrieben werden können:
+Davon abgeleitet gelten mit 
 
 ~~~scala
-// m.flatMap(f).flatMap(g)
+def h: X => Y
+def i: Y => Z
+~~~
+
+auch diese Funktor-Gesetze:
+
+~~~scala
+// Assoziativität (Funktor)
+m.map(h).map(i) == m.map(h andThen i)
+// Identität / Neutralität (Funktor)
+m.map(x => x) == m
+unit(x).map(h) == unit(h(x))
+// Nullobjekt (Funktor)
+zero.map(h) == zero
+~~~
+
+Damit ist `Option[T]` auch im streng mathematischen Sinn eine Monade mit Null. 
+
+## Praxis
+
+Übersetzt auf die for-comprehension bedeutet die Assoziativität, dass man auf geschachtelte `for` Ausdrücke gleichartiger Monaden verzichten kann, denn
+
+~~~scala
 for {
   y <- for (x <- m; y <- f(x)) yield y
   z <- g(y)
 } yield z
+// wird übersetzt zu m.flatMap(f).flatMap(g)
 ~~~
 
-ist das Gleiche wie
+ist das Gleiche wie 
 
 ~~~scala
-// m.flatMap(x => f(x).flatMap(g))
 for {
   x <- m
   y <- f(x)
   z <- g(y)
 } yield z
+// wird übersetzt zu m.flatMap(x => f(x).flatMap(g))
 ~~~
 
-Und wie schon im Abschnitt zum Suchen und Filtern beschrieben, ist der folgende Ausdruck
+Die Identitätsregel des Funktors sorgt dafür das stets 
 
 ~~~scala
-for {
-  x <- m
-  if false // unerfüllbar
-} yield x
+m == for(x <- m) yield x
 ~~~
 
-stets eine Abbildung auf das Nullobjekt der Monade (`None` für `Option[T]`).
+gilt, denn `yield x` wird hier zu `map(x => x)` übersetzt.
 
 ## Der Typ `Monad[T]`
 
