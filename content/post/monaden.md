@@ -274,14 +274,14 @@ Was eine Kategorie also ausmacht, sind, in einem Satz,
 - deren assoziative Komponierbarkeit, sowie 
 - jeweils ein Begriff von Identität (ein neutraler Morphismus) für alle Objekte der Kategorie. 
 
-Wir finden diese Aspekte bei Monaden wieder. Implementieren wir als Beispiel `Option[T]`.
+Wir finden diese Aspekte bei Monaden wieder. Implementieren wir als Beispiel `Option[T]` (stark vereinfacht und zur Verdeutlichung mit `unit` und `zero`, für die es in der Standardbibliothek keine einheitlichen Bezeichnungen gibt).
 
 ~~~scala
 object Option {
   // Konstruktion
   def unit[T]: T => Option[T] = x => Some(x)
   // Nullobjekt
-  val zero: Option[Nothing] = None
+  def zero[T]: Option[T] = None
 }
 
 case object None extends Option[Nothing]
@@ -295,14 +295,18 @@ sealed trait Option[+T] {
     case Some(x) => f(x)
   }
   // Liften zurückgeführt auf flatMap und unit
-  def map[U](f: T => U): Option[U] = flatMap(f andThen unit)
-  // Filtern zurückgeführt auf flatMap, unit und zero
-  def filter(p: T => Boolean): Option[T] = 
-    flatMap(x => if(p(x)) unit(x) else zero)
+  def map[U](f: T => U): Option[U] = flatMap(x => unit(f(x)))
+  // Filter zurückgeführt auf flatMap, unit und zero
+  def filter(p: T => Boolean): Option[T] = flatMap { x => 
+    if (p(x)) unit(x) 
+    else zero
+  }
 }
 ~~~
 
-Instanzen von `Option[T]` mit übereinstimmenden Typparametern bilden jeweils die Objekte der Kategorie. Seien `X`, `Y` und `Z` drei beliebige Typen und 
+Wie man sieht, sind `map` und `filter` nicht wesentlich für Monaden, denn sie lassen sich auf die Implementierungen von `unit` (Wie werden Objekte der Kategorie konstruiert?), `flatMap` (Wie werden die Objekte aufeinander abgebildet?) und `zero` (Was ist das Nullobjekt?) zurückführen.
+
+Instanzen von `Option[T]` mit übereinstimmenden Typparametern bilden nun die Objekte der Kategorie. Seien `X`, `Y` und `Z` drei beliebige Typen und 
 
 ~~~scala
 val x: X
@@ -311,13 +315,10 @@ def f: X => Option[Y]
 def g: Y => Option[Z]
 ~~~
 
-dann ist `m.flatMap(f)` ein Morphismus von `Option[X]` nach `Option[Y]` und `m.flatMap(f).flatMap(g)` die Komposition zweier Morphismen mit Anfangsobjekt `Option[X]` und Endobjekt `Option[Z]`. 
+dann ist `m.flatMap(f)` ein Morphismus von `Option[X]` nach `Option[Y]` und `m.flatMap(f).flatMap(g)` die Komposition zweier Morphismen mit Anfangsobjekt `Option[X]` und Endobjekt `Option[Z]`. Desweiteren ist `m.flatMap(unit)` der *neutrale Morphismus* und `m.flatMap(_ => zero)` der *Nullmorphismus* (mit *Nullobjekt* `None`).
 
-`m.flatMap(unit)` ist der *neutrale Morphismus* und `m.flatMap(_ => zero)` ist der *Nullmorphismus* (mit *Nullobjekt* `None`).
 
-Wie an `map` und `filter` ersichtlich ist, sind diese Methoden nicht wesentlich für Monaden, denn sie lassen sich auf die Implementierungen von `unit` (Wie wird der Kontext erzeugt?), `flatMap` (Wie werden Morphismen komponiert?) und `zero` (Was ist das Nullobjekt?) zurückführen.
-
-Es gelten nun die folgenden monadischen Gesetze (jeder mag sich selbst davon überzeugen):
+Es gelten nun die folgenden monadischen Gesetze:
 
 ~~~scala
 // Assoziativität
@@ -343,7 +344,7 @@ auch diese Funktor-Gesetze:
 
 ~~~scala
 // Assoziativität (Funktor)
-m.map(h).map(i) == m.map(h andThen i)
+m.map(h).map(i) == m.map(x => i(h(x)))
 // Identität / Neutralität (Funktor)
 m.map(x => x) == m
 unit(x).map(h) == unit(h(x))
@@ -355,17 +356,36 @@ Damit ist `Option[T]` auch im streng mathematischen Sinn eine Monade mit Null.
 
 ## Praxis
 
-Übersetzt auf die for-comprehension bedeutet die Assoziativität, dass man auf geschachtelte `for` Ausdrücke gleichartiger Monaden verzichten kann, denn
+Die Identitätsregel des Funktors sorgt nun dafür, dass 
+
+~~~scala
+(for (x <- m) yield x) == m
+~~~
+
+gilt, denn `yield x` bedeutet nichts anderes als das Liften der Identitätsfunktion, hier also `m.map(x => x)`.
+
+Die monadische Assoziativität bedeutet übersetzt auf die for-comprehension, dass man auf geschachtelte `for` Ausdrücke gleichartiger Monaden verzichten kann, denn
 
 ~~~scala
 for {
   y <- for (x <- m; y <- f(x)) yield y
   z <- g(y)
 } yield z
-// wird übersetzt zu m.flatMap(f).flatMap(g)
 ~~~
 
-ist das Gleiche wie 
+wird übersetzt zu 
+
+~~~scala
+m.flatMap(f).flatMap(g)
+~~~
+
+Was das Gleiche ist wie 
+
+~~~scala
+m.flatMap(x => f(x).flatMap(g))
+~~~
+
+oder in for-Schreibweise
 
 ~~~scala
 for {
@@ -373,16 +393,7 @@ for {
   y <- f(x)
   z <- g(y)
 } yield z
-// wird übersetzt zu m.flatMap(x => f(x).flatMap(g))
 ~~~
-
-Die Identitätsregel des Funktors sorgt dafür das stets 
-
-~~~scala
-m == for(x <- m) yield x
-~~~
-
-gilt, denn `yield x` wird hier zu `map(x => x)` übersetzt.
 
 ## Der Typ `Monad[T]`
 
